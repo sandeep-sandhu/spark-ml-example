@@ -1,4 +1,4 @@
-CREATE TABLE if not exists "DB2INST1"."BANK_CHURN"
+CREATE TABLE if not exists "DB2INST1"."BANK_TELEMKT"
 (
    "AGE" 			double,
    "JOB" 			varchar(200),

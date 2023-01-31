@@ -1,2 +1,9 @@
 *.class
 *.log
+*.cache
+*.jar
+*.cmd
+project/target
+target
+temp
+.idea

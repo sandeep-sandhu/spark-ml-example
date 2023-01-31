@@ -15,24 +15,24 @@ libraryDependencies := Seq(
   , "org.apache.spark" %% "spark-streaming-kafka-0-10"  % "3.2.0" % "provided"
   , "org.apache.spark" %% "spark-graphx"  % "3.2.0" % "provided"
   , "org.apache.spark" %% "spark-mllib"  % "3.2.0" % "provided"
-  , "com.esotericsoftware" % "kryo-shaded" % "4.0.2" % "provided"
+  , "io.netty" % "netty-buffer" % "4.1.68.Final" % "provided"
+  ,  "log4j" % "log4j" % "1.2.17" % "provided"
 )
 
 // kryo serialisation
-libraryDependencies += "com.esotericsoftware" % "kryo" % "5.4.0"
+//libraryDependencies += "com.esotericsoftware" % "kryo" % "5.4.0"
+
+// for testing:
+// https://mvnrepository.com/artifact/org.scalatest/scalatest
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.15"
 
 // config file reader:
 libraryDependencies += "com.typesafe" % "config" % "1.4.2"
 
-// for logging:
-// https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api-scala
-libraryDependencies += "org.apache.logging.log4j" %% "log4j-api-scala" % "12.0"
-// https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core
-libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.19.0"
-
 // For accessing object stores, etc. using stocator i.e. Storage Connector for Apache Spark:
 // see: https://github.com/CODAIT/stocator
-libraryDependencies += "com.ibm.stocator" % "stocator" % "1.1.5"
+//libraryDependencies += "com.ibm.stocator" % "stocator" % "1.1.5"
 
 // For including the IBM DB2 Database JDBC driver:
 libraryDependencies += "com.ibm.db2.jcc" % "db2jcc" % "db2jcc4"

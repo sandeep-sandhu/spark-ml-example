@@ -1,11 +1,11 @@
 
 import java.util.Properties
-import org.apache.logging.log4j.scala.{Logger, Logging}
-import org.apache.logging.log4j.Level
+
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StringType, StructType}
 import org.apache.spark.ml.linalg.VectorUDT
 import com.esotericsoftware.kryo.Kryo
+import org.apache.log4j.{Level, Logger}
 
 case class ModelDataRecord(
                             age: Double,
@@ -31,9 +31,13 @@ case class ModelDataRecord(
                             y: String
                           )
 
-object ModelData extends org.apache.logging.log4j.scala.Logging{
+object ModelData extends {
 
   val appName: String = sparkApp.appName
+
+  val logger: Logger = Logger.getLogger(sparkApp.appName)
+  logger.setLevel(Level.INFO)
+
   private var dbConnProp = new Properties()
 
   /**
@@ -41,7 +45,7 @@ object ModelData extends org.apache.logging.log4j.scala.Logging{
    * @return Array of classes
    */
   def prepareListOfKryoClasses(): Array[Class[_]] = {
-    return Array(
+    Array(
       classOf[ModelDataRecord],
       Class.forName("org.apache.spark.internal.io.FileCommitProtocol$TaskCommitMessage"),
       Class.forName("org.apache.spark.sql.types.StringType$"),
@@ -93,33 +97,33 @@ object ModelData extends org.apache.logging.log4j.scala.Logging{
   }
 
   val bank_telemkt_schema: StructType = new StructType()
-    .add("age", DoubleType, true)
-    .add("job", StringType, true)
-    .add("marital", StringType, true)
-    .add("education", StringType, true)
-    .add("defaulted", StringType, true)
-    .add("housing", StringType, true)
-    .add("loan", StringType, true)
-    .add("contact_no", StringType, true)
-    .add("month_name", StringType, true)
-    .add("day_of_week", StringType, true)
-    .add("duration", DoubleType, true)
-    .add("campaign", DoubleType, true)
-    .add("pdays", DoubleType, true)
-    .add("previous", DoubleType, true)
-    .add("poutcome", StringType, true)
-    .add("emp_var_rate", DoubleType, true)
-    .add("cons_price_idx", DoubleType, true)
-    .add("cons_conf_idx", DoubleType, true)
-    .add("euribor3m", DoubleType, true)
-    .add("nr_employed", DoubleType, true)
-    .add("y", StringType, true)
+    .add("age", DoubleType, nullable = true)
+    .add("job", StringType, nullable = true)
+    .add("marital", StringType, nullable = true)
+    .add("education", StringType, nullable = true)
+    .add("defaulted", StringType, nullable = true)
+    .add("housing", StringType, nullable = true)
+    .add("loan", StringType, nullable = true)
+    .add("contact_no", StringType, nullable = true)
+    .add("month_name", StringType, nullable = true)
+    .add("day_of_week", StringType, nullable = true)
+    .add("duration", DoubleType, nullable = true)
+    .add("campaign", DoubleType, nullable = true)
+    .add("pdays", DoubleType, nullable = true)
+    .add("previous", DoubleType, nullable = true)
+    .add("poutcome", StringType, nullable = true)
+    .add("emp_var_rate", DoubleType, nullable = true)
+    .add("cons_price_idx", DoubleType, nullable = true)
+    .add("cons_conf_idx", DoubleType, nullable = true)
+    .add("euribor3m", DoubleType, nullable = true)
+    .add("nr_employed", DoubleType, nullable = true)
+    .add("y", StringType, nullable = true)
 
   /**
    * Read data from CSV file, apply the given schema.
-   * @param spark
-   * @param fileName
-   * @return
+   * @param spark The spark session
+   * @param fileName The csv file to read from
+   * @return Dataset with rows of class ModelDataRecord
    */
   def readDataFile(spark: SparkSession,
                    fileName: String,
@@ -133,7 +137,7 @@ object ModelData extends org.apache.logging.log4j.scala.Logging{
       .csv(fileName)
       .as[ModelDataRecord];
 
-    return inputDF
+    inputDF
   }
 
   /**
@@ -192,7 +196,7 @@ object ModelData extends org.apache.logging.log4j.scala.Logging{
     val newCols = dbdata_df.columns.map(x => x.toLowerCase() )
     val dfRenamed = dbdata_df.toDF(newCols: _*)
 
-    return dfRenamed.as[ModelDataRecord]
+    dfRenamed.as[ModelDataRecord]
   }
 
 }

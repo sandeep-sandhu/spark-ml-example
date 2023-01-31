@@ -1,18 +1,20 @@
 /**
  * File: AppSettings.scala
- * Purpose:
+ * Purpose: Reads the application configuration from the conf file.
  *
  * */
 
 import com.typesafe.config.Config
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import org.apache.log4j.{Level, Logger}
 
-import org.apache.logging.log4j.scala.{Logger, Logging}
-import org.apache.logging.log4j.Level
+class AppSettings(config: Config) extends Serializable{
 
-class AppSettings(config: Config) extends Serializable with org.apache.logging.log4j.scala.Logging {
+  val logger: Logger = Logger.getLogger(sparkApp.appName)
+  logger.setLevel(Level.INFO)
+
+  logger.info("Started loading configuration from the config file.")
+
   val inputFile: String = config.getString("file.input")
   val outputFile: String = config.getString("file.output")
 

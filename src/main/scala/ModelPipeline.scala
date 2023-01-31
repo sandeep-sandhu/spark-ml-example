@@ -1,26 +1,27 @@
 /**
  * File: ModelPipeline.scala
- * Purpose: Train and infer using model pipelines
+ * Purpose: Train models and generate model inferences using model pipelines
  *
  */
 
-import org.apache.logging.log4j.scala.{Logger, Logging}
-import org.apache.logging.log4j.Level
 
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession, functions}
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions.{col, udf, _}
-
-import org.apache.spark.ml.classification.{GBTClassifier, LogisticRegression, LogisticRegressionModel, RandomForestClassifier}
-import org.apache.spark.ml.{Model, Pipeline, PipelineModel, PipelineStage}
-import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder, TrainValidationSplit, TrainValidationSplitModel}
+import org.apache.spark.ml.classification.{GBTClassificationModel, GBTClassifier, LogisticRegression, LogisticRegressionModel, RandomForestClassificationModel, RandomForestClassifier}
+import org.apache.spark.ml.{Pipeline, PipelineModel, PipelineStage}
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.feature.{MinMaxScaler, OneHotEncoder, StringIndexer, VectorAssembler}
 import org.apache.spark.ml.linalg
 
-import sparkApp.appName
+import org.apache.log4j.{Level, Logger}
 
 
-object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
+object ModelPipeline extends{
+
+  val logger: Logger = Logger.getLogger(sparkApp.appName)
+  logger.setLevel(Level.INFO)
 
   val spark: SparkSession = SparkSession.active
   // For implicit conversions like converting RDDs to DataFrames
@@ -42,7 +43,7 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
                     numericalFeatures: Array[String]): PipelineModel = {
 
     // this buffer "xforms" will accumulate all our transformations till we're ready to put them in a pipeline
-    var xforms = scala.collection.mutable.ArrayBuffer.empty[PipelineStage];
+    val xforms = scala.collection.mutable.ArrayBuffer.empty[PipelineStage];
 
     // first of all, index the binary label column:
     val labelIndexer = new StringIndexer()
@@ -58,11 +59,11 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     logger.info("On-hot encoding all categorical variables.")
 
     // gather all column names, these will be used in vector assembler later:
-    var allColNames = scala.collection.mutable.ArrayBuffer.empty[String]
+    val allColNames = scala.collection.mutable.ArrayBuffer.empty[String]
     categoricalFeatures.foreach(x => allColNames += "vec_idx_%s".format(x))
 
     // gather all numerical variables to assemble into a vector for scaling
-    var numericalColNames = scala.collection.mutable.ArrayBuffer.empty[String]
+    val numericalColNames = scala.collection.mutable.ArrayBuffer.empty[String]
     numericalFeatures.foreach(y => numericalColNames += y)
     val assembler1 = new VectorAssembler()
       .setInputCols(numericalColNames.toArray)
@@ -88,9 +89,28 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     val xformFitted = xformPipeline.fit(inputDF);
     logger.info("Completed fitting the pipeline")
 
-    return xformFitted
+    xformFitted
   }
 
+  /**
+   * Convenience function to list the fitted pipeline and its stages.
+   * @param fittedPipeline The pipeline fitted on the dataset.
+   */
+  def listPipelineStages(fittedPipeline: PipelineModel) : Unit = {
+
+    val pipelineStages = fittedPipeline.parent
+      .extractParamMap
+      .toSeq.head
+      .value
+      .asInstanceOf[Array[PipelineStage]]
+
+    var counter = 0
+
+    pipelineStages.foreach(x => {
+      println(counter + ":" + x.getClass.toString + ": " + x.toString + ": " + x.extractParamMap);
+      counter += 1;
+    })
+  }
 
   /**
    * Train a logistic regression model
@@ -99,8 +119,8 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
    * @param labelColName The name of the label column
    * @return The fitted logistic regression model selected by cross validation
    */
-  def fitLRModel(training: org.apache.spark.sql.DataFrame,
-                 labelColName: String): CrossValidatorModel = {
+  def fitLRModel(training: DataFrame,
+                 labelColName: String): LogisticRegressionModel = {
     logger.info("Training a logistic regression model.")
 
     // Create a LogisticRegression instance. This instance is an Estimator.
@@ -148,10 +168,10 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     // TrainValidationSplit will try all combinations of values and determine best model using
     // the evaluator.
     val paramGrid = new ParamGridBuilder()
-      .addGrid(lr.regParam, Array(0.0025))
-      //.addGrid(lr.fitIntercept)
+      .addGrid(lr.regParam, Array(0.1, 0.0025))
+      //.addGrid(lr.fitIntercept) // <- for boolean parameters, simply add the parameter
       //.addGrid(lr.standardization)
-      .addGrid(lr.elasticNetParam, Array(0.0075))
+      .addGrid(lr.elasticNetParam, Array(0.5, 0.0075))
       .addGrid(lr.threshold, Array(0.35))
       .build()
 
@@ -173,9 +193,35 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     // we can view the parameters it used during fit().
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated Logistic Regression Model was fit using parameters:---${fittedParamMap}")
+    logger.info(s"---Cross-fold validated Logistic Regression Model was fit using parameters:---$fittedParamMap")
 
-    return model1
+    model1.bestModel.asInstanceOf[LogisticRegressionModel]
+  }
+
+  /**
+   * Extract model fit performance from a binary classification model
+   * @param sc Spark Context
+   * @param fittedModel Logistic regression model fitted on a binary target
+   * @return Dataframe with model performance metrics from training run.
+   */
+  def getModelFitSummary(sc: SparkContext, fittedModel: LogisticRegressionModel): DataFrame = {
+    if (fittedModel.numClasses == 2) {
+      val summaryDF = sc.parallelize(
+        Array(
+          ("Prediction labels", fittedModel.summary.labels(0), fittedModel.summary.labels(1))
+          , ("True Positive Rate", fittedModel.summary.truePositiveRateByLabel(0), fittedModel.summary.truePositiveRateByLabel(1))
+          , ("Recall", fittedModel.summary.recallByLabel(0), fittedModel.summary.recallByLabel(1))
+          , ("Precision", fittedModel.summary.precisionByLabel(0), fittedModel.summary.precisionByLabel(1))
+          , ("False Positive Rate", fittedModel.summary.falsePositiveRateByLabel(0), fittedModel.summary.falsePositiveRateByLabel(1))
+          , ("F-measure", fittedModel.summary.fMeasureByLabel(0), fittedModel.summary.fMeasureByLabel(1))
+          , ("Total Accuracy", 0.0, fittedModel.summary.accuracy)
+          , ("Area Under ROC", 0.0, fittedModel.binarySummary.areaUnderROC)
+        )
+      ).toDF(Array("Metric", "Class_0", "Class_1"): _*)
+
+      return summaryDF
+    }
+    null
   }
 
   /**
@@ -184,8 +230,8 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
    * @param labelColName Name of th label column
    * @return Fitted GBDTree model
    */
-  def fitGBTRModel( training: org.apache.spark.sql.DataFrame,
-                    labelColName: String): CrossValidatorModel = {
+  def fitGBTRModel( training: DataFrame,
+                    labelColName: String): GBTClassificationModel = {
 
     logger.info("Training a Gradient Boosted Decision Trees model.")
 
@@ -229,7 +275,7 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     validationTol: Threshold for stopping early when fit with validation is used.If the error rate on the validation input changes by less than the validationTol,then learning will stop early (before `maxIter`).This parameter is ignored when fit without validation is used. (default: 0.01)
     weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (undefined)
     */
-    //val gbtModel = gbt.fit(training) // <-- commented out since we're using cross-validator
+    //val gbtModel: GBTClassificationModel = gbt.fit(training) // <-- commented out since we're using cross-validator
 
     val paramGrid = new ParamGridBuilder()
       .addGrid(gbt.minInstancesPerNode, Array(8))
@@ -254,9 +300,9 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
 
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated Gradient Boosted Decision Trees Model was fit using parameters:---${fittedParamMap}")
+    logger.info(s"---Cross-fold validated Gradient Boosted Model was fit using parameters:---$fittedParamMap")
 
-    return model1
+    model1.bestModel.asInstanceOf[GBTClassificationModel]
   }
 
   /**
@@ -265,8 +311,8 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
    * @param labelColName Column name for the label
    * @return Best performing trained model after cross validation
    */
-  def fitRFModel( training: org.apache.spark.sql.DataFrame,
-                  labelColName: String): CrossValidatorModel = {
+  def fitRFModel( training: DataFrame,
+                  labelColName: String): RandomForestClassificationModel = {
     logger.info("Training a RandomForest model.")
 
     // Train a RandomForest model, set the hyper-parameters:
@@ -314,7 +360,7 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
 
     val binaryEvaluator = new BinaryClassificationEvaluator()
       .setLabelCol(labelColName)
-      .setMetricName("areaUnderPR");
+      .setMetricName("areaUnderPR")
 
     val xfoldValidator = new CrossValidator()
       .setEstimator(rf)
@@ -329,9 +375,9 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
 
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated RandomForest Model was fit using parameters:---${fittedParamMap}")
+    logger.info(s"---Cross-fold validated RandomForest Model was fit using parameters:---$fittedParamMap")
 
-    return model1
+    model1.bestModel.asInstanceOf[RandomForestClassificationModel]
   }
 
   /**
@@ -395,7 +441,7 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
     val testResultWithProbsDF = dfProbArr.select((col("*") +: sqlExpr): _*)
       .drop(colNames = "PredictProbabArr", "p0")
 
-    return testResultWithProbsDF
+    testResultWithProbsDF
   }
 
    /**
@@ -423,7 +469,7 @@ object ModelPipeline extends org.apache.logging.log4j.scala.Logging{
 
     val logloss: Any = testResultsLoglossDF.select(avg("logloss")).collect()(0)(0);
 
-    return logloss.asInstanceOf[Double]
+    logloss.asInstanceOf[Double]
   }
 
   /**
