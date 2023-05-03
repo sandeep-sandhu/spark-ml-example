@@ -34,12 +34,9 @@ jobs:
 #      uses: scalacenter/sbt-dependency-submission@ab086b50c947c9774b70f39fc7f6e20ca2706c91
     - name: Coverage Report
       run: sbt coverageReport
+
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Formatting
-        run: sbt scalafmtSbtCheck scalafmtCheck test:scalafmtCheck
+    - name: Formatting
+      run: sbt scalafmtCheck test:scalafmtCheck

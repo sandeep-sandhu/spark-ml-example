@@ -27,13 +27,17 @@ libraryDependencies += "org.jfree" % "jfreechart" % "1.5.4"
 
 
 // for testing:
+libraryDependencies += "org.scoverage" %% "scalac-scoverage-plugin" % "1.4.0" % Test
+//coverageEnabled := true
+
 // https://mvnrepository.com/artifact/org.scalatest/scalatest
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.15"
 
+
 javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:+CMSClassUnloadingEnabled")
-//  test / fork := true
 Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+//  test / fork := true
 
 
 // config file reader:
