@@ -3,7 +3,7 @@
 ![Scala](https://img.shields.io/badge/Scala-DC322F?style=for-the-badge&logo=scala&logoColor=white)
 ![Build Status](https://github.com/sandeep-sandhu/spark-ml-example/actions/workflows/scala.yml/badge.svg) 
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/sandeep-sandhu/spark-ml-example/graphs/commit-activity)
-[![GitHub latest commit](https://badgen.net/github/last-commit/Naereen/Strapdown.js)](https://GitHub.com/sandeep-sandhu/spark-ml-example/commit/)
+![master](https://img.shields.io/github/last-commit/sandeep-sandhu/spark-ml-example/master)
 
 
 This is a complete working example of an Apache Spark application that uses the MLlib modules
