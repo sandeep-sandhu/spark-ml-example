@@ -1,14 +1,13 @@
 /**
- * File: AppSettings.scala
- * Purpose: Reads the application configuration from the conf file.
- *
- * */
-
+  * File: AppSettings.scala
+  * Purpose: Reads the application configuration from the conf file.
+  *
+  * */
 import com.typesafe.config.Config
 import scala.collection.JavaConverters._
 import org.apache.log4j.{Level, Logger}
 
-class AppSettings(config: Config) extends Serializable{
+class AppSettings(config: Config) extends Serializable {
 
   val logger: Logger = Logger.getLogger(sparkApp.appName)
   logger.setLevel(Level.INFO)
@@ -26,11 +25,16 @@ class AppSettings(config: Config) extends Serializable{
 
   val minPartitions: Int = config.getInt("minPartitions")
   val labelCol: String = config.getString("label.column")
-  val numericalFeatures: Array[String] = config.getStringList("numerical.features").asScala.map( x => x).toArray
-  val categoricalFeatures: Array[String] = config.getStringList("categorical.features").asScala.map(x => x).toArray
+
+  val numericalFeatures: Array[String] =
+    config.getStringList("numerical.features").asScala.map(x => x).toArray
+
+  val categoricalFeatures: Array[String] =
+    config.getStringList("categorical.features").asScala.map(x => x).toArray
   val lrModelSavePath: String = config.getString("lr.model.save.path")
   val gbdtModelSavePath: String = config.getString("gbdt.model.save.path")
-  val transformPipelineSavePath: String = config.getString("transform.pipeline.path")
+
+  val transformPipelineSavePath: String =
+    config.getString("transform.pipeline.path")
 
 }
-

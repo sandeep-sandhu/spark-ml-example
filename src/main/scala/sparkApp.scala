@@ -8,15 +8,17 @@ spark-submit --jars /home/java_libs/mysql-connector-j-8.0.32.jar --class sparkAp
 spark-submit --jars /home/java_libs/mysql-connector-j-8.0.32.jar --class sparkApp --master spark://sparkmaster320:7077 --files /home/spark_projs/spark_ml/src/main/resources/modeltraining.conf --driver-java-options -Dconfig.file=/home/spark_projs/spark_ml/src/main/resources/modeltraining.conf /home/spark_projs/spark_ml/target/scala-2.12/SparkMLExample-assembly-1.1.jar fromfile train
 spark-submit --jars /home/java_libs/mysql-connector-j-8.0.32.jar --class sparkApp --master spark://sparkmaster320:7077 --files /home/spark_projs/spark_ml/src/main/resources/modeltraining.conf --driver-java-options -Dconfig.file=/home/spark_projs/spark_ml/src/main/resources/modeltraining.conf /home/spark_projs/spark_ml/target/scala-2.12/SparkMLExample-assembly-1.1.jar fromfile test
 
- *
- *   */
-
-
+  *
+  *   */
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.PipelineModel
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.ml.classification.{GBTClassificationModel, LogisticRegressionModel, RandomForestClassificationModel}
+import org.apache.spark.ml.classification.{
+  GBTClassificationModel,
+  LogisticRegressionModel,
+  RandomForestClassificationModel
+}
 import org.apache.log4j.{Level, Logger}
 
 import scala.annotation.tailrec
@@ -30,18 +32,20 @@ object sparkApp {
   Usage: sparkApp [--datasource file|database] [--mode train|test]
   """
 
-  def main(args: Array[String]) : Unit = {
+  def main(args: Array[String]): Unit = {
 
     // Step 1:
     Logger.getLogger("org.apache.spark").setLevel(Level.WARN)
-    Logger.getLogger("org.apache.spark.storage.BlockManager").setLevel(Level.ERROR)
+    Logger
+      .getLogger("org.apache.spark.storage.BlockManager")
+      .setLevel(Level.ERROR)
     //Logger.getLogger("org").setLevel(Level.INFO)
     val logger: Logger = Logger.getLogger(appName)
     logger.setLevel(Level.INFO)
 
     logger.info(s"Started the application: $appName.")
 
-    if(args.length==0) println(usage)
+    if (args.length == 0) println(usage)
     val cmdArgOptions = nextArg(Map(), args.toList)
 
     // create a spark session configuration
@@ -51,8 +55,7 @@ object sparkApp {
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("setWarnUnregisteredClasses", "true")
       //.set("spark.kryo.registrationRequired", "true") // <- disabled because of OpenHashMap errors when fitting models
-      .registerKryoClasses(ModelData.prepareListOfKryoClasses()
-      )
+      .registerKryoClasses(ModelData.prepareListOfKryoClasses())
 
     //create a spark session from the configuration
     val spark = SparkSession
@@ -60,18 +63,22 @@ object sparkApp {
       .config(sparkConf)
       .getOrCreate()
 
-    if (args.length > 1){
+    if (args.length > 1) {
 
       // list all spark config parameters for information, useful only when debugging
-      logger.info(s"Started spark application with configuration:\n${getSparkConfigParams(sparkConf)}")
+      logger.info(
+        s"Started spark application with configuration:\n${getSparkConfigParams(sparkConf)}"
+      )
 
       // Step 1:
       logger.info(s"Reading data from file: ${settings.inputFile}")
       var inputDF = ModelData.readDataFile(spark, settings.inputFile)
 
-      if(cmdArgOptions("datasource").equalsIgnoreCase("database")) {
+      if (cmdArgOptions("datasource").equalsIgnoreCase("database")) {
 
-        logger.info(s"Reading data from database table: ${settings.jdbcTableName}")
+        logger.info(
+          s"Reading data from database table: ${settings.jdbcTableName}"
+        )
 
         ModelData.setDBConnProperties(
           settings.jdbcDriver,
@@ -80,12 +87,13 @@ object sparkApp {
           settings.jdbcPassword
         )
 
-        inputDF = ModelData.readFromJdbcConn(spark, tableName = settings.jdbcTableName)
+        inputDF =
+          ModelData.readFromJdbcConn(spark, tableName = settings.jdbcTableName)
       }
 
       ExploratoryAnalysis.plotCharts(inputDF)
 
-      if(cmdArgOptions("mode").equalsIgnoreCase("train")) {
+      if (cmdArgOptions("mode").equalsIgnoreCase("train")) {
 
         logger.info("Started training model.")
 
@@ -110,7 +118,8 @@ object sparkApp {
         ModelPipeline.listPipelineStages(transformPipeline)
 
         // Run the transformation pipeline on the dataset to prepare the data for model building
-        val preparedDF: org.apache.spark.sql.DataFrame = transformPipeline.transform(inputDF)
+        val preparedDF: org.apache.spark.sql.DataFrame =
+          transformPipeline.transform(inputDF)
         logger.info("Completed transforming data using the pipeline.")
 
         // split the prepared data into train-test datasets as: 90% and 10%
@@ -123,14 +132,17 @@ object sparkApp {
         // Fit multiple different models on this training data
 
         // Train a logistic regression model
-        val lrModel: LogisticRegressionModel = ModelPipeline.fitLRModel(trainingDF, "label")
+        val lrModel: LogisticRegressionModel =
+          ModelPipeline.fitLRModel(trainingDF, "label")
         ModelPipeline.getModelFitSummary(spark.sparkContext, lrModel).show()
 
         // Train a Gradient Boosted Decision Tree model
-        val gbtModel:GBTClassificationModel = ModelPipeline.fitGBTRModel(trainingDF, "label")
+        val gbtModel: GBTClassificationModel =
+          ModelPipeline.fitGBTRModel(trainingDF, "label")
 
         // Train a RandomForest Model
-        val rfModel:RandomForestClassificationModel = ModelPipeline.fitRFModel(trainingDF, "label")
+        val rfModel: RandomForestClassificationModel =
+          ModelPipeline.fitRFModel(trainingDF, "label")
 
         // Step 5:
         // Evaluate each model's performance on test set
@@ -139,38 +151,55 @@ object sparkApp {
         // Note: model.transform will only use the 'features' column.
         val testResultLR = lrModel.transform(testDF)
         // custom processing to add class1 probability as a separate column for easier calculations
-        val testResultLRWithProbsDF = ModelPipeline.addBinaryProbabilities(testResultLR)
+        val testResultLRWithProbsDF =
+          ModelPipeline.addBinaryProbabilities(testResultLR)
         // evaluate model performance on test set
         ModelPipeline.evaluatePerformance(testResultLRWithProbsDF)
 
-        logger.info("Model performance evaluation for -> Gradient Boosted Decision Trees Model:")
+        logger.info(
+          "Model performance evaluation for -> Gradient Boosted Decision Trees Model:"
+        )
         val testResultGBDT = gbtModel.transform(testDF)
-        val testResultGBDTWithProbsDF = ModelPipeline.addBinaryProbabilities(testResultGBDT)
+        val testResultGBDTWithProbsDF =
+          ModelPipeline.addBinaryProbabilities(testResultGBDT)
         ModelPipeline.evaluatePerformance(testResultGBDTWithProbsDF)
 
         logger.info("Model performance evaluation for -> Random Forest Model:")
         val testResultRF = rfModel.transform(testDF)
-        val testResultRFWithProbsDF = ModelPipeline.addBinaryProbabilities(testResultRF)
+        val testResultRFWithProbsDF =
+          ModelPipeline.addBinaryProbabilities(testResultRF)
         ModelPipeline.evaluatePerformance(testResultRFWithProbsDF)
 
         // Step 6:
-        logger.info("Now writing fitted LR model to disk at: " + settings.lrModelSavePath)
+        logger.info(
+          "Now writing fitted LR model to disk at: " + settings.lrModelSavePath
+        )
         lrModel.write.overwrite().save(settings.lrModelSavePath)
 
-        logger.info("Now writing fitted GBDT model to disk at: " + settings.gbdtModelSavePath)
+        logger.info(
+          "Now writing fitted GBDT model to disk at: " + settings.gbdtModelSavePath
+        )
         gbtModel.write.overwrite().save(settings.gbdtModelSavePath)
 
-        logger.info("Now saving the transformation pipeline to disk at: " + settings.transformPipelineSavePath)
-        transformPipeline.write.overwrite().save(settings.transformPipelineSavePath)
+        logger.info(
+          "Now saving the transformation pipeline to disk at: " + settings.transformPipelineSavePath
+        )
+        transformPipeline.write
+          .overwrite()
+          .save(settings.transformPipelineSavePath)
 
-      }else{
+      } else {
         // Model Prediction/inference:
         // Alternatively, load an already saved Pipeline from disk:
-        val transformPipeline: PipelineModel = PipelineModel.load(settings.transformPipelineSavePath)
+        val transformPipeline: PipelineModel =
+          PipelineModel.load(settings.transformPipelineSavePath)
 
         // Run the transformation pipeline on the dataset to prepare the data for model building
-        val preparedDF: org.apache.spark.sql.DataFrame = transformPipeline.transform(inputDF)
-        logger.info("Completed transforming data using the transformation pipeline.")
+        val preparedDF: org.apache.spark.sql.DataFrame =
+          transformPipeline.transform(inputDF)
+        logger.info(
+          "Completed transforming data using the transformation pipeline."
+        )
 
         // Alternatively, load an already fitted model from disk:
         val lrModel = LogisticRegressionModel.load(settings.lrModelSavePath)
@@ -179,13 +208,16 @@ object sparkApp {
         val testResultLR = lrModel.transform(preparedDF)
 
         // custom processing to add class1 probability as a separate column for easier calculations
-        val testResultLRWithProbsDF = ModelPipeline.addBinaryProbabilities(testResultLR)
+        val testResultLRWithProbsDF =
+          ModelPipeline.addBinaryProbabilities(testResultLR)
 
         //write results to a csv file:
-        ModelData.saveDataFrameToCSV(testResultLRWithProbsDF, settings.outputFile)
+        ModelData.saveDataFrameToCSV(
+          testResultLRWithProbsDF,
+          settings.outputFile
+        )
       }
-    }
-    else{
+    } else {
       logger.error("No arguments given.\nUsage:")
       logger.error("First argument should be either - fromfile or fromdatabase")
       logger.error("Second argument should be either - train or test")
@@ -195,25 +227,30 @@ object sparkApp {
   }
 
   /**
-   * Print all of Spark's configuration parameters
-   * @param config: SparkContext of the current spark session
-   */
+    * Print all of Spark's configuration parameters
+    * @param config: SparkContext of the current spark session
+    */
   private def getSparkConfigParams(config: SparkConf): String = {
     val strBuilder = new StringBuilder()
     // for each key-value pair, prepare a string key=value, append it to the string builder
-    for ((k:String, v:String) <- config.getAll) {strBuilder ++= s"\n$k = $v"}
+    for ((k: String, v: String) <- config.getAll) {
+      strBuilder ++= s"\n$k = $v"
+    }
     // return prepared string
     strBuilder.mkString
   }
 
   /**
-   * Parse the next command line argument, recursively building up the map.
-   * @param map The hashmap in which all switches and their values are stored as key-value pairs
-   * @param list The command line arguments passed as a list
-   * @return
-   */
+    * Parse the next command line argument, recursively building up the map.
+    * @param map The hashmap in which all switches and their values are stored as key-value pairs
+    * @param list The command line arguments passed as a list
+    * @return
+    */
   @tailrec
-  private def nextArg(map: Map[String, String], list: List[String]): Map[String, String] = {
+  private def nextArg(
+    map: Map[String, String],
+    list: List[String]
+  ): Map[String, String] =
     list match {
       case Nil => map
       case "--datasource" :: value :: tail =>
@@ -224,6 +261,4 @@ object sparkApp {
         println("Unknown option " + unknown)
         map
     }
-  }
 }
-

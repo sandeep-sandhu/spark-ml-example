@@ -32,8 +32,8 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.15"
 
 javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:+CMSClassUnloadingEnabled")
-// fork in test := true
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+//  test / fork := true
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 
 // config file reader:

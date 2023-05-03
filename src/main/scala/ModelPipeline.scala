@@ -1,24 +1,33 @@
 /**
- * File: ModelPipeline.scala
- * Purpose: Train models and generate model inferences using model pipelines
- *
- */
-
-
+  * File: ModelPipeline.scala
+  * Purpose: Train models and generate model inferences using model pipelines
+  *
+  */
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions.{col, udf, _}
-import org.apache.spark.ml.classification.{GBTClassificationModel, GBTClassifier, LogisticRegression, LogisticRegressionModel, RandomForestClassificationModel, RandomForestClassifier}
+import org.apache.spark.ml.classification.{
+  GBTClassificationModel,
+  GBTClassifier,
+  LogisticRegression,
+  LogisticRegressionModel,
+  RandomForestClassificationModel,
+  RandomForestClassifier
+}
 import org.apache.spark.ml.{Pipeline, PipelineModel, PipelineStage}
 import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
-import org.apache.spark.ml.feature.{MinMaxScaler, OneHotEncoder, StringIndexer, VectorAssembler}
+import org.apache.spark.ml.feature.{
+  MinMaxScaler,
+  OneHotEncoder,
+  StringIndexer,
+  VectorAssembler
+}
 import org.apache.spark.ml.linalg
 
 import org.apache.log4j.{Level, Logger}
 
-
-object ModelPipeline extends{
+object ModelPipeline extends {
 
   val logger: Logger = Logger.getLogger("ModelPipeline")
   logger.setLevel(Level.INFO)
@@ -28,19 +37,21 @@ object ModelPipeline extends{
   import spark.implicits._
 
   /**
-   * Transforms the raw dataset columns to a form usable for training the models -
-   * e.g. string to categorical variables, one-hot encoding, scaling of continuous variables, etc.
-   *
-   * @param inputDF Input raw dataset
-   * @param labelColname Name of the label column
-   * @param categoricalFeatures List of column names which are categorical features
-   * @param numericalFeatures List of column names which are numerical features
-   * @return The fitted transformation pipeline
-   */
-  def transformData(inputDF: Dataset[ModelDataRecord],
-                    labelColname: String,
-                    categoricalFeatures: Array[String],
-                    numericalFeatures: Array[String]): PipelineModel = {
+    * Transforms the raw dataset columns to a form usable for training the models -
+    * e.g. string to categorical variables, one-hot encoding, scaling of continuous variables, etc.
+    *
+    * @param inputDF Input raw dataset
+    * @param labelColname Name of the label column
+    * @param categoricalFeatures List of column names which are categorical features
+    * @param numericalFeatures List of column names which are numerical features
+    * @return The fitted transformation pipeline
+    */
+  def transformData(
+    inputDF: Dataset[ModelDataRecord],
+    labelColname: String,
+    categoricalFeatures: Array[String],
+    numericalFeatures: Array[String]
+  ): PipelineModel = {
 
     // this buffer "xforms" will accumulate all our transformations till we're ready to put them in a pipeline
     val xforms = scala.collection.mutable.ArrayBuffer.empty[PipelineStage];
@@ -52,10 +63,16 @@ object ModelPipeline extends{
     xforms += labelIndexer;
 
     // add a column indexer for each categorical column:
-    categoricalFeatures.foreach(x => xforms += new StringIndexer().setInputCol(x).setOutputCol("idx_" + x))
+    categoricalFeatures.foreach(x =>
+      xforms += new StringIndexer().setInputCol(x).setOutputCol("idx_" + x)
+    )
     logger.info("Indexing categorical variables.")
 
-    categoricalFeatures.foreach(x => xforms += new OneHotEncoder().setInputCol("idx_" + x).setOutputCol("vec_idx_" + x))
+    categoricalFeatures.foreach(x =>
+      xforms += new OneHotEncoder()
+        .setInputCol("idx_" + x)
+        .setOutputCol("vec_idx_" + x)
+    )
     logger.info("On-hot encoding all categorical variables.")
 
     // gather all column names, these will be used in vector assembler later:
@@ -72,7 +89,9 @@ object ModelPipeline extends{
     logger.info("Assembled together all numerical variables.")
 
     // apply a min-max scaler for the numerical features:
-    xforms += new MinMaxScaler().setInputCol("numericalfeatures").setOutputCol("scaledfeatures");
+    xforms += new MinMaxScaler()
+      .setInputCol("numericalfeatures")
+      .setOutputCol("scaledfeatures");
     allColNames += "scaledfeatures"
     logger.info("Scaled all numerical variables by min-max scaler.")
 
@@ -82,7 +101,10 @@ object ModelPipeline extends{
       .setOutputCol("features")
     xforms += assembler2;
 
-    logger.info("Assembling pipeline with the following transformations: \n" + xforms.mkString(" \n"))
+    logger.info(
+      "Assembling pipeline with the following transformations: \n" + xforms
+        .mkString(" \n")
+    )
     val xformPipeline = new Pipeline()
       .setStages(xforms.toArray);
 
@@ -93,34 +115,35 @@ object ModelPipeline extends{
   }
 
   /**
-   * Convenience function to list the fitted pipeline and its stages.
-   * @param fittedPipeline The pipeline fitted on the dataset.
-   */
-  def listPipelineStages(fittedPipeline: PipelineModel) : Unit = {
+    * Convenience function to list the fitted pipeline and its stages.
+    * @param fittedPipeline The pipeline fitted on the dataset.
+    */
+  def listPipelineStages(fittedPipeline: PipelineModel): Unit = {
 
-    val pipelineStages = fittedPipeline.parent
-      .extractParamMap
-      .toSeq.head
-      .value
+    val pipelineStages = fittedPipeline.parent.extractParamMap.toSeq.head.value
       .asInstanceOf[Array[PipelineStage]]
 
     var counter = 0
 
-    pipelineStages.foreach(x => {
-      println(counter + ":" + x.getClass.toString + ": " + x.toString + ": " + x.extractParamMap);
+    pipelineStages.foreach { x =>
+      println(
+        counter + ":" + x.getClass.toString + ": " + x.toString + ": " + x.extractParamMap
+      );
       counter += 1;
-    })
+    }
   }
 
   /**
-   * Train a logistic regression model
-   *
-   * @param training     The input dataset for training
-   * @param labelColName The name of the label column
-   * @return The fitted logistic regression model selected by cross validation
-   */
-  def fitLRModel(training: DataFrame,
-                 labelColName: String): LogisticRegressionModel = {
+    * Train a logistic regression model
+    *
+    * @param training     The input dataset for training
+    * @param labelColName The name of the label column
+    * @return The fitted logistic regression model selected by cross validation
+    */
+  def fitLRModel(
+    training: DataFrame,
+    labelColName: String
+  ): LogisticRegressionModel = {
     logger.info("Training a logistic regression model.")
 
     // Create a LogisticRegression instance. This instance is an Estimator.
@@ -136,7 +159,9 @@ object ModelPipeline extends{
       .setLabelCol(labelColName);
 
     // Print out the parameters, documentation, and any default values.
-    logger.info(s"---Logistic Regression parameters for training:---\n ${lr.explainParams()}\n")
+    logger.info(
+      s"---Logistic Regression parameters for training:---\n ${lr.explainParams()}\n"
+    )
     /*
     aggregationDepth: suggested depth for treeAggregate (>= 2) (default: 2)
     elasticNetParam: the ElasticNet mixing parameter, in range [0, 1]. For alpha = 0, the penalty is an L2 penalty. For alpha = 1, it is an L1 penalty (default: 0.0, current: 0.005)
@@ -159,7 +184,7 @@ object ModelPipeline extends{
     upperBoundsOnCoefficients: The upper bounds on coefficients if fitting under bound constrained optimization. (undefined)
     upperBoundsOnIntercepts: The upper bounds on intercepts if fitting under bound constrained optimization. (undefined)
     weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (undefined)
-    */
+     */
 
     // Now Learn a LogisticRegression model. This uses the parameters stored in lr.
     //val model1 = lr.fit(training); // <-- commented out since param grid is used
@@ -193,31 +218,62 @@ object ModelPipeline extends{
     // we can view the parameters it used during fit().
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated Logistic Regression Model was fit using parameters:---$fittedParamMap")
+    logger.info(
+      s"---Cross-fold validated Logistic Regression Model was fit using parameters:---$fittedParamMap"
+    )
 
     model1.bestModel.asInstanceOf[LogisticRegressionModel]
   }
 
   /**
-   * Extract model fit performance from a binary classification model
-   * @param sc Spark Context
-   * @param fittedModel Logistic regression model fitted on a binary target
-   * @return Dataframe with model performance metrics from training run.
-   */
-  def getModelFitSummary(sc: SparkContext, fittedModel: LogisticRegressionModel): DataFrame = {
+    * Extract model fit performance from a binary classification model
+    * @param sc Spark Context
+    * @param fittedModel Logistic regression model fitted on a binary target
+    * @return Dataframe with model performance metrics from training run.
+    */
+  def getModelFitSummary(
+    sc: SparkContext,
+    fittedModel: LogisticRegressionModel
+  ): DataFrame = {
     if (fittedModel.numClasses == 2) {
-      val summaryDF = sc.parallelize(
-        Array(
-          ("Prediction labels", fittedModel.summary.labels(0), fittedModel.summary.labels(1))
-          , ("True Positive Rate", fittedModel.summary.truePositiveRateByLabel(0), fittedModel.summary.truePositiveRateByLabel(1))
-          , ("Recall", fittedModel.summary.recallByLabel(0), fittedModel.summary.recallByLabel(1))
-          , ("Precision", fittedModel.summary.precisionByLabel(0), fittedModel.summary.precisionByLabel(1))
-          , ("False Positive Rate", fittedModel.summary.falsePositiveRateByLabel(0), fittedModel.summary.falsePositiveRateByLabel(1))
-          , ("F-measure", fittedModel.summary.fMeasureByLabel(0), fittedModel.summary.fMeasureByLabel(1))
-          , ("Total Accuracy", 0.0, fittedModel.summary.accuracy)
-          , ("Area Under ROC", 0.0, fittedModel.binarySummary.areaUnderROC)
+      val summaryDF = sc
+        .parallelize(
+          Array(
+            (
+              "Prediction labels",
+              fittedModel.summary.labels(0),
+              fittedModel.summary.labels(1)
+            ),
+            (
+              "True Positive Rate",
+              fittedModel.summary.truePositiveRateByLabel(0),
+              fittedModel.summary.truePositiveRateByLabel(1)
+            ),
+            (
+              "Recall",
+              fittedModel.summary.recallByLabel(0),
+              fittedModel.summary.recallByLabel(1)
+            ),
+            (
+              "Precision",
+              fittedModel.summary.precisionByLabel(0),
+              fittedModel.summary.precisionByLabel(1)
+            ),
+            (
+              "False Positive Rate",
+              fittedModel.summary.falsePositiveRateByLabel(0),
+              fittedModel.summary.falsePositiveRateByLabel(1)
+            ),
+            (
+              "F-measure",
+              fittedModel.summary.fMeasureByLabel(0),
+              fittedModel.summary.fMeasureByLabel(1)
+            ),
+            ("Total Accuracy", 0.0, fittedModel.summary.accuracy),
+            ("Area Under ROC", 0.0, fittedModel.binarySummary.areaUnderROC)
+          )
         )
-      ).toDF(Array("Metric", "Class_0", "Class_1"): _*)
+        .toDF(Array("Metric", "Class_0", "Class_1"): _*)
 
       return summaryDF
     }
@@ -225,13 +281,15 @@ object ModelPipeline extends{
   }
 
   /**
-   * Train a Gradient Boosted Trees model.
-   * @param training Training dataset
-   * @param labelColName Name of th label column
-   * @return Fitted GBDTree model
-   */
-  def fitGBTRModel( training: DataFrame,
-                    labelColName: String): GBTClassificationModel = {
+    * Train a Gradient Boosted Trees model.
+    * @param training Training dataset
+    * @param labelColName Name of th label column
+    * @return Fitted GBDTree model
+    */
+  def fitGBTRModel(
+    training: DataFrame,
+    labelColName: String
+  ): GBTClassificationModel = {
 
     logger.info("Training a Gradient Boosted Decision Trees model.")
 
@@ -247,7 +305,9 @@ object ModelPipeline extends{
       .setFeatureSubsetStrategy("auto")
 
     // Print out the parameters, documentation, and any default values.
-    logger.info(s"---Gradient Boosted Decision Trees parameters for training:---\n ${gbt.explainParams()}\n")
+    logger.info(
+      s"---Gradient Boosted Decision Trees parameters for training:---\n ${gbt.explainParams()}\n"
+    )
     /*
     cacheNodeIds: If false, the algorithm will pass trees to executors to match instances with nodes. If true, the algorithm will cache node IDs for each instance. Caching can speed up training of deeper trees. (default: false)
     checkpointInterval: set checkpoint interval (>= 1) or disable checkpoint (-1). E.g. 10 means that the cache will get checkpointed every 10 iterations. Note: this setting will be ignored if the checkpoint directory is not set in the SparkContext (default: 10)
@@ -274,7 +334,7 @@ object ModelPipeline extends{
     validationIndicatorCol: name of the column that indicates whether each row is for training or for validation. False indicates training; true indicates validation. (undefined)
     validationTol: Threshold for stopping early when fit with validation is used.If the error rate on the validation input changes by less than the validationTol,then learning will stop early (before `maxIter`).This parameter is ignored when fit without validation is used. (default: 0.01)
     weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (undefined)
-    */
+     */
     //val gbtModel: GBTClassificationModel = gbt.fit(training) // <-- commented out since we're using cross-validator
 
     val paramGrid = new ParamGridBuilder()
@@ -300,19 +360,23 @@ object ModelPipeline extends{
 
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated Gradient Boosted Model was fit using parameters:---$fittedParamMap")
+    logger.info(
+      s"---Cross-fold validated Gradient Boosted Model was fit using parameters:---$fittedParamMap"
+    )
 
     model1.bestModel.asInstanceOf[GBTClassificationModel]
   }
 
   /**
-   * Train a RandomForest model
-   * @param training Training dataset
-   * @param labelColName Column name for the label
-   * @return Best performing trained model after cross validation
-   */
-  def fitRFModel( training: DataFrame,
-                  labelColName: String): RandomForestClassificationModel = {
+    * Train a RandomForest model
+    * @param training Training dataset
+    * @param labelColName Column name for the label
+    * @return Best performing trained model after cross validation
+    */
+  def fitRFModel(
+    training: DataFrame,
+    labelColName: String
+  ): RandomForestClassificationModel = {
     logger.info("Training a RandomForest model.")
 
     // Train a RandomForest model, set the hyper-parameters:
@@ -324,7 +388,9 @@ object ModelPipeline extends{
       .setNumTrees(150)
 
     // Print out the parameters, documentation, and any default values.
-    logger.info(s"---RandomForest parameters for training:---\n ${rf.explainParams()}\n")
+    logger.info(
+      s"---RandomForest parameters for training:---\n ${rf.explainParams()}\n"
+    )
     /*
     bootstrap: Whether bootstrap samples are used when building trees. (default: true)
     cacheNodeIds: If false, the algorithm will pass trees to executors to match instances with nodes. If true, the algorithm will cache node IDs for each instance. Caching can speed up training of deeper trees. (default: false)
@@ -348,14 +414,14 @@ object ModelPipeline extends{
     subsamplingRate: Fraction of the training data used for learning each decision tree, in range (0, 1]. (default: 1.0)
     thresholds: Thresholds in multi-class classification to adjust the probability of predicting each class. Array must have length equal to the number of classes, with values > 0 excepting that at most one value may be 0. The class with largest value p/t is predicted, where p is the original probability of that class and t is the class's threshold (undefined)
     weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (undefined)
-    */
+     */
 
     //val rfModel = rf.fit(training) // <-- commented out since we're using cross-validator
 
     val paramGrid = new ParamGridBuilder()
       .addGrid(rf.numTrees, Array(150))
       .addGrid(rf.maxDepth, Array(12))
-      .addGrid(rf.minInstancesPerNode, Array(1,2,5))
+      .addGrid(rf.minInstancesPerNode, Array(1, 2, 5))
       .build()
 
     val binaryEvaluator = new BinaryClassificationEvaluator()
@@ -375,108 +441,146 @@ object ModelPipeline extends{
 
     // This prints the parameter (name: value) pairs, where names are unique IDs for this instance.
     val fittedParamMap = model1.bestModel.parent.extractParamMap
-    logger.info(s"---Cross-fold validated RandomForest Model was fit using parameters:---$fittedParamMap")
+    logger.info(
+      s"---Cross-fold validated RandomForest Model was fit using parameters:---$fittedParamMap"
+    )
 
     model1.bestModel.asInstanceOf[RandomForestClassificationModel]
   }
 
   /**
-   * Evaluate Model's performance on test dataset.
-   * It calculates the area under ROC, area under P-R curve, Log scoring rule, and the contingency table.
-   * @param testResultDF Predictions dataframe with predicted probabilities and actual outcomes for comparison
-   * @param labelColName Actual outcome (label)
-   * @param predictedLabelColName Column name with the predicted label
-   * @param class1ProbColName Column name with the predicted class1 probability
-   */
-  def evaluatePerformance(testResultDF: DataFrame,
-                          labelColName: String = "label",
-                          predictedLabelColName: String = "prediction",
-                          class1ProbColName: String = "p1"): Unit = {
+    * Evaluate Model's performance on test dataset.
+    * It calculates the area under ROC, area under P-R curve, Log scoring rule, and the contingency table.
+    * @param testResultDF Predictions dataframe with predicted probabilities and actual outcomes for comparison
+    * @param labelColName Actual outcome (label)
+    * @param predictedLabelColName Column name with the predicted label
+    * @param class1ProbColName Column name with the predicted class1 probability
+    */
+  def evaluatePerformance(
+    testResultDF: DataFrame,
+    labelColName: String = "label",
+    predictedLabelColName: String = "prediction",
+    class1ProbColName: String = "p1"
+  ): Unit = {
 
     val binEvalPR = new BinaryClassificationEvaluator()
-      .setMetricName("areaUnderPR").setLabelCol(labelColName)
+      .setMetricName("areaUnderPR")
+      .setLabelCol(labelColName)
       .evaluate(testResultDF);
-    logger.info("For test set, Area under Precision-Recall curve is: " + binEvalPR.doubleValue());
+    logger.info(
+      "For test set, Area under Precision-Recall curve is: " + binEvalPR
+        .doubleValue()
+    );
 
     val binEvalROC = new BinaryClassificationEvaluator()
       .setLabelCol(labelColName)
       .evaluate(testResultDF);
-    logger.info("For test set, Area under ROC curve is: " + binEvalROC.doubleValue());
+    logger.info(
+      "For test set, Area under ROC curve is: " + binEvalROC.doubleValue()
+    );
 
-    val loglossScore: Double = logScoringMetric(testResultDF,
+    val loglossScore: Double = logScoringMetric(
+      testResultDF,
       labelCol = labelColName,
-      predictProb = class1ProbColName)
+      predictProb = class1ProbColName
+    )
     logger.info("For test set, the log-loss score is: " + loglossScore)
 
     println("For test set, the contingency table is: ")
-    val contTabDF = testResultDF.stat.crosstab(predictedLabelColName, labelColName)
+    val contTabDF =
+      testResultDF.stat.crosstab(predictedLabelColName, labelColName)
     contTabDF.show()
     val confusionMat = contTabDF.collect()
 
-    logger.info("For test set, the False Positives = %s".format( confusionMat(0)(1) ))
-    logger.info("For test set, the True Positives = %s".format( confusionMat(0)(2) ))
-    logger.info("For test set, the True Negatives = %s".format( confusionMat(1)(1) ))
-    logger.info("For test set, the False Negatives = %s".format( confusionMat(1)(2) ))
+    logger.info(
+      "For test set, the False Positives = %s".format(confusionMat(0)(1))
+    )
+    logger.info(
+      "For test set, the True Positives = %s".format(confusionMat(0)(2))
+    )
+    logger.info(
+      "For test set, the True Negatives = %s".format(confusionMat(1)(1))
+    )
+    logger.info(
+      "For test set, the False Negatives = %s".format(confusionMat(1)(2))
+    )
 
   }
 
   /**
-   * Split probability vector column into individual binary class probability columns - p1 and p0
-   * @param inputDF Input dataframe with model predictions
-   * @param probCol Name of the probability column, default is "probability"
-   * @return Dataframe with additional column for class 1 probability
-   */
-  def addBinaryProbabilities(inputDF: org.apache.spark.sql.DataFrame, probCol:String = "probability"): DataFrame = {
+    * Split probability vector column into individual binary class probability columns - p1 and p0
+    * @param inputDF Input dataframe with model predictions
+    * @param probCol Name of the probability column, default is "probability"
+    * @return Dataframe with additional column for class 1 probability
+    */
+  def addBinaryProbabilities(
+    inputDF: org.apache.spark.sql.DataFrame,
+    probCol: String = "probability"
+  ): DataFrame = {
 
     // Breakup vector field "probability" into prob of class "1":
     // Create a UDF to convert VectorUDT to ArrayType
     val vecToArray = udf((xs: linalg.Vector) => xs.toArray)
     // Add a ArrayType Column: PredictProbabArr
-    val dfProbArr = inputDF.withColumn("PredictProbabArr", vecToArray($"probability"))
+    val dfProbArr =
+      inputDF.withColumn("PredictProbabArr", vecToArray($"probability"))
     // Array of element names that need to be fetched:
     val elements = Array("p0", "p1")
     // Create a SQL-like expression using the array
-    val sqlExpr = elements.zipWithIndex.map { case (alias, idx) => col("PredictProbabArr").getItem(idx).as(alias) }
+    val sqlExpr = elements.zipWithIndex.map {
+      case (alias, idx) => col("PredictProbabArr").getItem(idx).as(alias)
+    }
     //add the columns to the dataframe
-    val testResultWithProbsDF = dfProbArr.select((col("*") +: sqlExpr): _*)
+    val testResultWithProbsDF = dfProbArr
+      .select((col("*") +: sqlExpr): _*)
       .drop(colNames = "PredictProbabArr", "p0")
 
     testResultWithProbsDF
   }
 
-   /**
-   * Calculates the log-loss using the log-scoring rule
+  /**
+    * Calculates the log-loss using the log-scoring rule
     * In the formula here: "label"=y and "p1"=p
-   * logloss = -y.log(p)  +  log(1 -p).(1 - y)
-   *
-   * @param inputDF Prediction results with actual and prediction probability
-   * @param predictProb Column name to be used for predicted probability of class 1
-   * @param labelCol Column name to be used for actual value
-   * @return The log loss calculated as per the log-scoring rule
-   */
-  def logScoringMetric(inputDF: DataFrame, predictProb:String="p1", labelCol:String = "label"): Double = {
+    * logloss = -y.log(p)  +  log(1 -p).(1 - y)
+    *
+    * @param inputDF Prediction results with actual and prediction probability
+    * @param predictProb Column name to be used for predicted probability of class 1
+    * @param labelCol Column name to be used for actual value
+    * @return The log loss calculated as per the log-scoring rule
+    */
+  def logScoringMetric(
+    inputDF: DataFrame,
+    predictProb: String = "p1",
+    labelCol: String = "label"
+  ): Double = {
 
-    val testResultsLoglossDF = inputDF.withColumn(
-      "loglossT1",
-      col("label") * org.apache.spark.sql.functions.log(col("p1")) * -1.0
-    ).withColumn(
-      colName = "loglossT2",
-      org.apache.spark.sql.functions.expr("1 - p1")
-    ).withColumn(
-      "logloss",
-      col("loglossT1") + org.apache.spark.sql.functions.log(col("loglossT2")) * expr("1 - label")
-    ).drop(colNames = "loglossT1", "loglossT2")
+    val testResultsLoglossDF = inputDF
+      .withColumn(
+        "loglossT1",
+        col("label") * org.apache.spark.sql.functions.log(col("p1")) * -1.0
+      )
+      .withColumn(
+        colName = "loglossT2",
+        org.apache.spark.sql.functions.expr("1 - p1")
+      )
+      .withColumn(
+        "logloss",
+        col("loglossT1") + org.apache.spark.sql.functions
+          .log(col("loglossT2")) * expr("1 - label")
+      )
+      .drop(colNames = "loglossT1", "loglossT2")
 
-    val logloss: Any = testResultsLoglossDF.select(avg("logloss")).collect()(0)(0);
+    val logloss: Any =
+      testResultsLoglossDF.select(avg("logloss")).collect()(0)(0);
 
     logloss.asInstanceOf[Double]
   }
 
   /**
-   * Utility function to prints the predictions dataframe.
-   * Caution: This collects all the data to the driver.
-   * @param testResultDF Predictions data frame
-   */
+    * Utility function to prints the predictions dataframe.
+    * Caution: This collects all the data to the driver.
+    * @param testResultDF Predictions data frame
+    */
   def printPredictionsDF(testResultDF: DataFrame): Unit = {
     // Coalesce dataframe to one partition, i.e. to driver
     val testResults = testResultDF.coalesce(1)
@@ -488,5 +592,5 @@ object ModelPipeline extends{
     //  println(s"($features, $label) -> prob=$prob, prediction=$prediction")
     //}
   }
-  
+
 }

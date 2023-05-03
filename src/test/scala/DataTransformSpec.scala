@@ -1,9 +1,8 @@
 /**
- * DataTransformSpec:
- *
- *
- */
-
+  * DataTransformSpec:
+  *
+  *
+  */
 import ModelData.convertDFtoDS
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.sql.{SQLContext, SQLImplicits, SparkSession}
@@ -12,7 +11,10 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome}
 import org.scalatest.funsuite.AnyFunSuite
 
 // Enables setting up fixtures using before-all and after-all
-class DataTransformSpec extends AnyFunSuite with BeforeAndAfterEach with BeforeAndAfterAll  {
+class DataTransformSpec
+    extends AnyFunSuite
+    with BeforeAndAfterEach
+    with BeforeAndAfterAll {
 
   self =>
   @transient var ss: SparkSession = null
@@ -34,32 +36,124 @@ class DataTransformSpec extends AnyFunSuite with BeforeAndAfterEach with BeforeA
 
   }
 
-  override def afterAll(): Unit = {
+  override def afterAll(): Unit =
     ss.stop()
-  }
 
   test("simple dataframe assert") {
 
-    val df = ss.createDataFrame(
-      Seq((1, "a string", "another string", 12344567L))
-    ).toDF(
-      "first val", "stringval", "stringval2", "longnum"
-    )
+    val df = ss
+      .createDataFrame(
+        Seq((1, "a string", "another string", 12344567L))
+      )
+      .toDF(
+        "first val",
+        "stringval",
+        "stringval2",
+        "longnum"
+      )
 
-      assert (df.count == 1)
+    assert(df.count == 1)
   }
 
-  test("Test the data transformation pipeline"){
+  test("Test the data transformation pipeline") {
 
-    val inputDF = ss.createDataFrame(
-      Seq(
-        (25,"technician","single","university.degree","no","no","yes","telephone","may","mon",20,1,999,0,"nonexistent",1.1,93.994,-36.4,4.857,5191,"no"),
-        (50, "entrepreneur", "married", "university.degree", "unknown", "yes", "no", "telephone", "may", "mon", 1042, 1, 999, 0, "nonexistent", 1.1, 93.994, -36.4, 4.857, 5191, "yes"),
-        (10, "entrepreneur", "single", "university.degree", "unknown", "yes", "no", "telephone", "may", "mon", 1042, 1, 999, 0, "nonexistent", 1.1, 93.994, -36.4, 4.857, 5191, "no")
+    val inputDF = ss
+      .createDataFrame(
+        Seq(
+          (
+            25,
+            "technician",
+            "single",
+            "university.degree",
+            "no",
+            "no",
+            "yes",
+            "telephone",
+            "may",
+            "mon",
+            20,
+            1,
+            999,
+            0,
+            "nonexistent",
+            1.1,
+            93.994,
+            -36.4,
+            4.857,
+            5191,
+            "no"
+          ),
+          (
+            50,
+            "entrepreneur",
+            "married",
+            "university.degree",
+            "unknown",
+            "yes",
+            "no",
+            "telephone",
+            "may",
+            "mon",
+            1042,
+            1,
+            999,
+            0,
+            "nonexistent",
+            1.1,
+            93.994,
+            -36.4,
+            4.857,
+            5191,
+            "yes"
+          ),
+          (
+            10,
+            "entrepreneur",
+            "single",
+            "university.degree",
+            "unknown",
+            "yes",
+            "no",
+            "telephone",
+            "may",
+            "mon",
+            1042,
+            1,
+            999,
+            0,
+            "nonexistent",
+            1.1,
+            93.994,
+            -36.4,
+            4.857,
+            5191,
+            "no"
+          )
+        )
       )
-    ).toDF(
-      "age", "job", "marital", "education", "defaulted", "housing", "loan", "contact_no", "month_name", "day_of_week", "duration", "campaign", "pdays", "previous", "poutcome", "emp_var_rate", "cons_price_idx", "cons_conf_idx", "euribor3m", "nr_employed", "y"
-    )
+      .toDF(
+        "age",
+        "job",
+        "marital",
+        "education",
+        "defaulted",
+        "housing",
+        "loan",
+        "contact_no",
+        "month_name",
+        "day_of_week",
+        "duration",
+        "campaign",
+        "pdays",
+        "previous",
+        "poutcome",
+        "emp_var_rate",
+        "cons_price_idx",
+        "cons_conf_idx",
+        "euribor3m",
+        "nr_employed",
+        "y"
+      )
 
     val inputDataset = convertDFtoDS(ss, inputDF);
     val num_feats = Array("age", "duration");
@@ -73,11 +167,12 @@ class DataTransformSpec extends AnyFunSuite with BeforeAndAfterEach with BeforeA
     );
 
     // Run the transformation pipeline on the dataset to prepare the data for model building
-    val preparedDF: org.apache.spark.sql.DataFrame = transformPipeline.transform(inputDF)
+    val preparedDF: org.apache.spark.sql.DataFrame =
+      transformPipeline.transform(inputDF)
     val collectedArray = preparedDF.collect();
     val colNames = preparedDF.columns;
 
-    collectedArray.foreach(x => {
+    collectedArray.foreach { x =>
       //println(": " + x.toString);
 
       // encoding of target label "y"
@@ -101,12 +196,11 @@ class DataTransformSpec extends AnyFunSuite with BeforeAndAfterEach with BeforeA
         assert(x.get(23) == 0.0)
       }
 
-    })
+    }
 
     // age scaling:
 
     // duration scaling:
-
 
   }
 }

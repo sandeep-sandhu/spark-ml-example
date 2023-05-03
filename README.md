@@ -1,7 +1,9 @@
 # Apache Spark MLlib Example
 
 ![Scala](https://img.shields.io/badge/Scala-DC322F?style=for-the-badge&logo=scala&logoColor=white)
+![License Type](https://img.shields.io/github/license/sandeep-sandhu/spark-ml-example.svg)
 ![Build Status](https://github.com/sandeep-sandhu/spark-ml-example/actions/workflows/scala.yml/badge.svg) 
+![Issues open](https://img.shields.io/github/issues/sandeep-sandhu/spark-ml-example.svg)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/sandeep-sandhu/spark-ml-example/graphs/commit-activity)
 ![master](https://img.shields.io/github/last-commit/sandeep-sandhu/spark-ml-example/master)
 
