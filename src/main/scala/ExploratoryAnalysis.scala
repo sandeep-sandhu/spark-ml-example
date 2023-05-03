@@ -7,6 +7,9 @@
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.ml.stat.KolmogorovSmirnovTest
 import org.apache.log4j.{Level, Logger}
+import breeze.linalg._
+import breeze.plot._
+import org.apache.spark.sql.functions.{col, udf, _}
 
 object ExploratoryAnalysis{
 
@@ -55,7 +58,7 @@ object ExploratoryAnalysis{
       numericalBivariateTable(inputDF, labelColName, x, "no", "yes").show()
     })
 
-    this.plotCharts(inputDF)
+    plotCharts(inputDF)
   }
 
 
@@ -109,8 +112,22 @@ object ExploratoryAnalysis{
     joinedDF.union(Seq(("K-S Statistic", ksStatistic1, ksStatistic2)).toDF)
   }
 
-  private def plotCharts(inputDF: Dataset[ModelDataRecord]): Unit={
-    // TODO: create and save interesting plots, in the absence of vega, identify appropriate charting library
+  def plotCharts(inputDF: Dataset[ModelDataRecord]): Unit={
+    // TODO: create and save interesting plots:
+
+
+    val f = Figure()
+    f.visible = false
+    val p = f.subplot(0)
+    val x = linspace(0.0, 1.0)
+    p += plot(x, x ^:^ 2.0)
+    p += plot(x, x ^:^ 3.0, '.')
+    p.title = "Some nice chart"
+    p.xlabel = "x axis"
+    p.ylabel = "y axis"
+    f.saveas("lines.png")
+
+
   }
 
 }

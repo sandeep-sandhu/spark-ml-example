@@ -83,6 +83,8 @@ object sparkApp {
         inputDF = ModelData.readFromJdbcConn(spark, tableName = settings.jdbcTableName)
       }
 
+      ExploratoryAnalysis.plotCharts(inputDF)
+
       if(cmdArgOptions("mode").equalsIgnoreCase("train")) {
 
         logger.info("Started training model.")

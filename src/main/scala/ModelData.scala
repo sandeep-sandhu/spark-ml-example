@@ -1,11 +1,11 @@
 
 import java.util.Properties
-
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StringType, StructType}
 import org.apache.spark.ml.linalg.VectorUDT
 import com.esotericsoftware.kryo.Kryo
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.sql
 
 case class ModelDataRecord(
                             age: Double,
@@ -33,9 +33,9 @@ case class ModelDataRecord(
 
 object ModelData extends {
 
-  val appName: String = sparkApp.appName
+  val appName: String = "ModelData"
 
-  val logger: Logger = Logger.getLogger(sparkApp.appName)
+  val logger: Logger = Logger.getLogger(appName)
   logger.setLevel(Level.INFO)
 
   private var dbConnProp = new Properties()
@@ -196,7 +196,21 @@ object ModelData extends {
     val newCols = dbdata_df.columns.map(x => x.toLowerCase() )
     val dfRenamed = dbdata_df.toDF(newCols: _*)
 
-    dfRenamed.as[ModelDataRecord]
+    // dfRenamed.as[ModelDataRecord]
+    convertDFtoDS(spark, dfRenamed)
+  }
+
+  /**
+   * Converts a given dataframe into a dataset of ModelRecord schema.
+   * @param spark Spark Session
+   * @param inputDF Input dataframe to be converted to dataset
+   * @return ModelRecord Dataset
+   */
+  def convertDFtoDS(spark: SparkSession,
+                    inputDF: sql.DataFrame): Dataset[ModelDataRecord] = {
+
+    import spark.implicits._
+    inputDF.as[ModelDataRecord]
   }
 
 }

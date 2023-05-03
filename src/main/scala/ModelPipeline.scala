@@ -10,7 +10,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions.{col, udf, _}
 import org.apache.spark.ml.classification.{GBTClassificationModel, GBTClassifier, LogisticRegression, LogisticRegressionModel, RandomForestClassificationModel, RandomForestClassifier}
 import org.apache.spark.ml.{Pipeline, PipelineModel, PipelineStage}
-import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
+import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.feature.{MinMaxScaler, OneHotEncoder, StringIndexer, VectorAssembler}
 import org.apache.spark.ml.linalg
@@ -20,7 +20,7 @@ import org.apache.log4j.{Level, Logger}
 
 object ModelPipeline extends{
 
-  val logger: Logger = Logger.getLogger(sparkApp.appName)
+  val logger: Logger = Logger.getLogger("ModelPipeline")
   logger.setLevel(Level.INFO)
 
   val spark: SparkSession = SparkSession.active

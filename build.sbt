@@ -1,6 +1,6 @@
 name := "SparkMLExample"
 
-version := "1.1"
+version := "1.2"
 
 scalaVersion := "2.12.16"
 
@@ -16,16 +16,25 @@ libraryDependencies := Seq(
   , "org.apache.spark" %% "spark-graphx"  % "3.2.0" % "provided"
   , "org.apache.spark" %% "spark-mllib"  % "3.2.0" % "provided"
   , "io.netty" % "netty-buffer" % "4.1.68.Final" % "provided"
-  ,  "log4j" % "log4j" % "1.2.17" % "provided"
+  , "log4j" % "log4j" % "1.2.17" % "provided"
 )
 
-// kryo serialisation
-//libraryDependencies += "com.esotericsoftware" % "kryo" % "5.4.0"
+// for plotting in scala:
+// https://mvnrepository.com/artifact/org.scalanlp/breeze-viz
+libraryDependencies += "org.scalanlp" %% "breeze-viz" % "1.2"  % "provided"
+libraryDependencies += "org.jfree" % "jfreechart" % "1.5.4"
+//libraryDependencies += "org.creativescala" %% "doodle-core" % "0.9.21"
+
 
 // for testing:
 // https://mvnrepository.com/artifact/org.scalatest/scalatest
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.15"
+
+javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:+CMSClassUnloadingEnabled")
+// fork in test := true
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+
 
 // config file reader:
 libraryDependencies += "com.typesafe" % "config" % "1.4.2"
@@ -54,14 +63,12 @@ libraryDependencies += "com.ibm.db2.jcc" % "db2jcc" % "db2jcc4"
 // MySQL database JDBC driver:
 //libraryDependencies += "com.mysql" % "mysql-connector-j" % "8.0.32"
 
-// for plotting in scala 2.11.x only:
-//libraryDependencies += "org.vegas-viz" % "vegas_2.11" % "0.3.9"
-//libraryDependencies += "org.vegas-viz" % "vegas-spark_2.11" % "0.3.11"
 
 // //for adding folder contains jars to the unmanaged classpath:
 //unmanagedBase := file("/usr/local/lib")
+
 // //for adding specific jars:
-//Compile / unmanagedJars += Attributed.blank(file("/usr/local/lib/mysql-connector-j-8.0.32.jar"))
+//Compile / unmanagedJars += Attributed.blank(file("c:\\bin\\lib\\breeze-viz_2.12-1.2.jar"))
 
 
 scalacOptions ++= Seq(
