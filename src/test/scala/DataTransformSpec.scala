@@ -3,7 +3,7 @@
   *
   * Run coverage report with sbt using command:
   * sbt ';coverageEnabled;test'
- */
+  */
 import ModelData.convertDFtoDS
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.sql.{SQLContext, SQLImplicits, SparkSession}
